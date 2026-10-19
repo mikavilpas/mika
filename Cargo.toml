@@ -1,0 +1,15 @@
+[workspace]
+resolver = "3"
+members = ["scripts/", "test_utils/"]
+
+[workspace.dependencies]
+anyhow = { version = "1.0.99", default-features = false }
+gix = { version = "0.89.0", default-features = false, features = ["revision", "sha1"] }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0", default-features = false, features = ["std"] }
+
+[profile.release]
+opt-level = "z"
+strip = true
+lto = true
+codegen-units = 1

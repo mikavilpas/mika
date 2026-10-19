@@ -1,0 +1,149 @@
+use std::path::PathBuf;
+
+use clap::{Parser, Subcommand, ValueEnum};
+
+#[derive(Parser)]
+#[command(name = "mika", version, about, long_about = None)]
+pub struct Cli {
+    #[command(subcommand)]
+    pub command: Commands,
+}
+
+#[derive(Subcommand)]
+pub enum Commands {
+    /// Summarize commits in markdown format, for quick PR descriptions
+    Summary {
+        /// The start ref, e.g. HEAD in (HEAD..main)
+        #[arg(long)]
+        from: String,
+
+        /// The end ref, e.g. main in (HEAD..main)
+        #[arg(long)]
+        to: String,
+    },
+
+    /// Summarize the commits on the given branch, before any other local branch is reached.
+    /// Defaults to the current branch.
+    BranchSummary {
+        /// The branch to summarize
+        #[arg(long)]
+        branch: Option<String>,
+    },
+
+    /// Share a patch in a PR for the given commit, or the current HEAD if not specified.
+    SharePatch {
+        /// The commit (or range) to share, defaults to the current HEAD
+        #[arg(long, default_value = "HEAD")]
+        commit: String,
+
+        /// Whether to include instructions for applying the patch. So that code reviewers can
+        /// easily apply the patch even if they don't know how to use the related git commands.
+        /// Defaults to true.
+        #[arg(long, default_value_t = true)]
+        with_instructions: bool,
+    },
+
+    /// Get a path to repo files, relative to the git repo root. The files don't need to exist.
+    Path {
+        /// One or more files to get paths for, either absolute or relative to the current
+        /// directory
+        #[arg(
+        value_name = "FILE",
+        value_hint = clap::ValueHint::AnyPath,
+        num_args = 1..,
+    )]
+        files: Vec<PathBuf>,
+    },
+
+    /// Display a markdown summary of GitLab merge requests from a JSON file
+    MrsSummary {
+        /// Path to the JSON file containing GitLab MRs (from GitLab API), or "-" to read from stdin
+        #[arg(value_name = "FILE", value_hint = clap::ValueHint::FilePath)]
+        file: PathBuf,
+
+        /// Output format
+        #[arg(long, default_value = "links")]
+        format: MrsFormat,
+    },
+
+    /// Generate a markdown summary of the current branch as part of the stack of MRs
+    MrStackSummary {
+        /// Path to the JSON file containing GitLab MRs (from GitLab API), or "-" to read from stdin
+        #[arg(value_name = "FILE", value_hint = clap::ValueHint::FilePath)]
+        file: PathBuf,
+
+        /// The current branch name
+        #[arg(long)]
+        branch: Option<String>,
+    },
+
+    /// Display a markdown summary of GitHub pull requests from a JSON file
+    PrsSummary {
+        /// Path to the JSON file containing GitHub PRs (from `gh pr list --json`), or "-" to read from stdin
+        #[arg(value_name = "FILE", value_hint = clap::ValueHint::FilePath)]
+        file: PathBuf,
+
+        /// Output format
+        #[arg(long, default_value = "links")]
+        format: PrsFormat,
+    },
+
+    /// Generate shell functions for initializing support for a shell.
+    Init {
+        /// The shell to generate initialization for
+        #[arg(value_enum)]
+        shell: InitShell,
+
+        /// The directory to write shell function files to
+        #[arg(long)]
+        output_dir: PathBuf,
+    },
+
+    /// Autosquash only the specified branch in a stack, preserving fixups in branches above.
+    AutosquashBranch {
+        #[command(subcommand)]
+        command: AutosquashSubcommand,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum AutosquashSubcommand {
+    /// Run the autosquash rebase for a branch in a stack.
+    Run {
+        /// The branch to autosquash
+        branch: String,
+    },
+    /// Edit a rebase todo file (internal: used as GIT_SEQUENCE_EDITOR).
+    EditTodo {
+        /// The branch name (fixups after this branch's update-ref become picks)
+        #[arg(long)]
+        branch: String,
+        /// Path to the rebase todo file (passed by git as the positional argument)
+        #[arg(value_name = "FILE", value_hint = clap::ValueHint::FilePath)]
+        file: PathBuf,
+    },
+}
+
+#[derive(Debug, Clone, Copy, Default, ValueEnum)]
+pub enum MrsFormat {
+    /// Show MRs with links to GitLab
+    #[default]
+    Links,
+    /// Show branch names instead of links
+    Branches,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum InitShell {
+    /// The Fish shell
+    Fish,
+}
+
+#[derive(Debug, Clone, Copy, Default, ValueEnum)]
+pub enum PrsFormat {
+    /// Show PRs with links to GitHub
+    #[default]
+    Links,
+    /// Show branch names instead of links
+    Branches,
+}
