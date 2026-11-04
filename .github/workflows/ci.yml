@@ -24,7 +24,7 @@ jobs:
         with:
           fail: true
 
-  required-checks:
+  ci:
     runs-on: ubuntu-26.04
     if: always()
     needs:
