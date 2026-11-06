@@ -24,46 +24,38 @@ jobs:
         with:
           fail: true
 
+  fmt:
+    name: formatting
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2.0.1
+        with:
+          components: rustfmt
+          cache: false
+      - run: cargo fmt --all -- --check
+        working-directory: scripts
+
   test:
     env:
-      SCCACHE_GHA_ENABLED: true
-      RUSTC_WRAPPER: sccache
       CARGO_TERM_COLOR: always
-
     runs-on: ubuntu-26.04
-    permissions:
-      contents: read
     steps:
       # based on
       # https://github.com/sxyazi/yazi/blob/1a2a18e333de4d92bd83028c808cc9d388b84b60/.github/workflows/test.yml?plain=1#L1
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Setup the mold linker
-        uses: rui314/setup-mold@339e96b4ff1f3bd865856ba4cbbe8818a7acb038 # v1
-      - name: Setup Rust toolchain
-        run: rustup toolchain install nightly --profile minimal
-        working-directory: scripts
-
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
-
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-        working-directory: scripts
-
-      - name: Build
-        run: cargo build --workspace --verbose
-        working-directory: scripts
-
+      # also caches ~/.cargo and target/ (rust-cache), so no sccache needed
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2.0.1
       - uses: taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b # v2
-        # https://nexte.st/docs/installation/pre-built-binaries/
-        name: Install cargo-nextest
         with:
-          tool: cargo-nextest
-
+          tool: cargo-nextest # https://nexte.st/docs/installation/pre-built-binaries/
+      # nextest builds the tests itself, so a separate `cargo build` is redundant
       - name: Test
-        run: cargo nextest run --workspace --verbose --all-features
+        run: cargo nextest run --workspace --all-features
         working-directory: scripts
 
   ci:
@@ -72,6 +64,7 @@ jobs:
     needs:
       # these must pass to allow merging
       - check-links
+      - fmt
       - test
     steps:
       - name: Check results
